@@ -7,31 +7,18 @@
 #include <dirent.h> 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include "util.h"
 
-int endswith(char * str, char * suffix);
+#define ISO8601_LEN sizeof "2011-10-08T07:07:09Z"
+
 int print_version();
 int print_help();
 int init_it();
 int new_issue(char * title);
 int list_issues();
+int close_issue(int id);
+int reopen_issue(int id);
 int main(int argc, char **argv);
-
-//http://stackoverflow.com/a/744822/778858
-int endswith(char *str, char *suffix)
-{
-    if (!str || !suffix) {
-        return 0;
-    }
-    
-    size_t lenstr = strlen(str);
-    size_t lensuffix = strlen(suffix);
-    
-    if (lensuffix >  lenstr) {
-        return 0;
-    }
-    
-    return strncmp(str + lenstr - lensuffix, suffix, lensuffix) == 0;
-}
 
 
 int print_version()
@@ -108,9 +95,9 @@ int new_issue(char * title)
         char filedata[1024];
         time_t now;
         time(&now);
-        char time_str[sizeof "2011-10-08T07:07:09Z"];
-        strftime(time_str, sizeof time_str, "%FT%TZ", gmtime(&now));
-        sprintf(filedata, "%s\n%s\n========\n\n#start writing your issue here", title, time_str); 
+        char time_str[ISO8601_LEN];
+        strftime(time_str, ISO8601_LEN, "%FT%TZ", gmtime(&now));
+        sprintf(filedata, "%s\n%s\n========\n\nstart writing your issue here\n", title, time_str); 
 
         fp = fopen(filepath, "a+");
         if(fp == NULL) {
@@ -136,6 +123,7 @@ int list_issues()
 {
     DIR * d = opendir(".it/issues");
     struct dirent *dir;
+    int cnt = 0;
 
     if (d) {
         while ((dir = readdir(d)) != NULL) {
@@ -152,14 +140,20 @@ int list_issues()
                 }
 
                 {
-                    char * line;
+                    char * title = malloc(sizeof(char) * 256);
+                    char * time_str = malloc(sizeof(char) * ISO8601_LEN);
                     ssize_t read;
                     size_t len = 0;
-                    int lcnt = 0;
-                 
-                    while((read = getline(&line, &len, fp)) != 1 && lcnt++ < 2) {
-                        printf("%s", line);
-                    }
+                    char line[256];
+
+                    read = getline(&title, &len, fp);
+                    read = getline(&time_str, &len, fp);
+
+                    sprintf(line, "#%s\t%s\t%s", djb2tos(djb2(title)), time_str, title);
+                    printf("%s", line);
+
+                    free(title);
+                    free(time_str);
                 }
 
                 fclose(fp);
@@ -169,6 +163,16 @@ int list_issues()
         closedir(d);
     }
 
+    return 0;
+}
+
+int close_issue(int id)
+{
+    return 0;
+}
+
+int reopen_issue(int id)
+{
     return 0;
 }
 
@@ -198,6 +202,20 @@ int main(int argc, char **argv)
         }
         if(strcmp("list", argv[i]) == 0) {
             return list_issues();
+        }
+        if(strcmp("close", argv[i]) == 0) {
+            if(argc < 2) {
+                fprintf(stderr, "error: close requires an id\n");
+                return 1;
+            }
+            return close_issue(atoi(argv[i+1]));
+        }
+        if(strcmp("reopen", argv[i]) == 0) {
+            if(argc < 2) {
+                fprintf(stderr, "error: reopen requires an id\n");
+                return 1;
+            }
+            return reopen_issue(atoi(argv[i+1]));
         }
         
         printf("try `it help`\n");

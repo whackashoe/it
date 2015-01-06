@@ -1,3 +1,3 @@
 #!/bin/sh
 
-gcc main.c -o it
+gcc main.c util.c -o it

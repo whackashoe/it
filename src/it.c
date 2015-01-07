@@ -170,7 +170,7 @@ int new_issue(char * title)
         }
 
         filename[j] = '\0';
-        sprintf(filepath, "%s/issues/%s.it", it_dir, filename);
+        sprintf(filepath, "%s/issues/%s.md", it_dir, filename);
     }
     
     {
@@ -222,7 +222,7 @@ int get_issue_list(struct issue_list * ilist, char * issues_dir)
         ilist_it = ilist;
 
         while ((dir = readdir(d)) != NULL) {
-            if(endswith(dir->d_name, ".it")) {
+            if(endswith(dir->d_name, ".md")) {
                 char filepath[1024];
                 FILE * fp;
                 sprintf(filepath, "%s/%s", issues_dir, dir->d_name);

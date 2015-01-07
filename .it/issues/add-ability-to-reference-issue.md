@@ -1,6 +1,6 @@
 add ability to reference issue
+===
 2015-01-06T18:34:44Z
-========
 
 adding:
 

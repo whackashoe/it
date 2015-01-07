@@ -182,7 +182,13 @@ int new_issue(char * title)
         time(&now);
 
         strftime(time_str, DATEFORMAT_LEN, "%Y-%m-%d %H:%M", gmtime(&now));
-        sprintf(filedata, "%s\n%s\n========\n\nstart writing your issue here\n", title, time_str); 
+        sprintf(filedata, "%s\n"
+                          "===\n"
+                          "%s\n"
+                          "\n"
+                          "start writing your issue here\n",
+            title, time_str
+        ); 
 
         fp = fopen(filepath, "a+");
         if(fp == NULL) {
@@ -236,6 +242,7 @@ int get_issue_list(struct issue_list * ilist, char * issues_dir)
 
                 {
                     struct issue_list_item list_item;
+                    char * junkdata = malloc(sizeof(char) * 1024);
                     ssize_t read;
                     size_t len = 0;
 
@@ -243,10 +250,16 @@ int get_issue_list(struct issue_list * ilist, char * issues_dir)
                     strncpy(list_item.filepath, filepath, sizeof(filepath));
                     strncpy(list_item.filename, dir->d_name, sizeof(dir->d_name));
 
+                    /* get title */
                     read = getline(&list_item.title, &len, fp);
                     if(read == -1) {
                         fprintf(stderr, "error: reading first line of %s", list_item.filepath);
                     }
+
+                    /* skip line */
+                    read = getline(&junkdata, &len, fp);
+
+                    /* get date */
                     read = getline(&list_item.datetime, &len, fp);
                     if(read == -1) {
                         fprintf(stderr, "error: reading second line of %s", list_item.filepath);

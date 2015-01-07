@@ -17,7 +17,6 @@ it commands:
    list [archive]     List all issues
    close ID           Close an issue
    reopen ID          Reopen an issue
-   rename ID TITLE    Rename an issue
    edit ID            Edit an issue
    help COMMAND       Shows help page describing command
 

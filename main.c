@@ -22,7 +22,48 @@ int reopen_issue(char * id);
 int rename_issue(char * id, char * title);
 int main(int argc, char **argv);
 
+int it_search_recursive_descent(char * out)
+{
+    char cwd[1024];
+    size_t cwdlen;
+    char it_dir[1024 + (128 * 3)];
+    int depth = 0;
+    int maxdepth = 128;
+    
+    if(getcwd(cwd, sizeof(cwd)) == NULL) {
+        fprintf(stderr, "error: current working directory unable to be resolved\n");
+        return 1;
+    }
+    cwdlen = strlen(cwd);
 
+    {
+        struct stat st = {0};
+        sprintf(it_dir, "%s/.it", cwd);
+
+        while((stat(it_dir, &st) == -1) && depth < maxdepth) {
+            char append[128*3];
+            int i;
+
+            for(i=0; i<depth; ++i) {
+                append[i*3 + 0] = '/';
+                append[i*3 + 1] = '.';
+                append[i*3 + 2] = '.';
+            }
+            append[depth * 3] = '\0';
+            
+            sprintf(it_dir, "%s%s/.it", cwd, append);
+            ++depth;
+        }
+    }
+
+    if(depth == maxdepth) {
+        sprintf(out, "");        
+        return 1;
+    }
+
+    sprintf(out, "%s", it_dir);
+    return 0;
+}
 
 int print_version()
 {
@@ -38,9 +79,15 @@ int print_help()
 
 int init_it()
 {
+    char it_dir[1024];
     struct stat st = {0};
 
-    if(stat(".it", &st) == -1) {
+    if(!it_search_recursive_descent(it_dir)) {
+        fprintf(stderr, "error: it has already been installed in a parent directory: %s\n", it_dir);
+        return 1;
+    }
+
+    if(stat(it_dir, &st) == -1) {
         char cwd[1024];
 
         if(getcwd(cwd, sizeof(cwd)) != NULL) {
@@ -65,6 +112,11 @@ int new_issue(char * title)
     char * editor = "vim";
     int title_len = strlen(title);
     char * filepath = malloc(sizeof(char) * (title_len + 128));
+    char it_dir[1024];
+    if(it_search_recursive_descent(it_dir)) {
+        fprintf(stderr, "error: it doesn't exist in this or any parent directories\n");
+        return 1;
+    }
 
     /*
     char * editor = getenv("EDITOR");
@@ -90,7 +142,7 @@ int new_issue(char * title)
         }
 
         filename[j] = '\0';
-        sprintf(filepath, ".it/issues/%s.it", filename);
+        sprintf(filepath, "%s/issues/%s.it", it_dir, filename);
     }
     
     {
@@ -124,22 +176,32 @@ int new_issue(char * title)
     return 0;
 }
 
-int list_issues()
+int get_issue_list(struct issue_list * ilist)
 {
-    DIR * d = opendir(".it/issues");
+    char it_dir[1024];
+    char issues_dir[1024];
+    DIR * d;
     struct dirent *dir;
+    struct issue_list * ilist_it;
 
-    if (d) {
-        struct issue_list ilist;
-        struct issue_list * ilist_it;
-        issue_list_init(&ilist);
-        ilist_it = &ilist;
+    if(it_search_recursive_descent(it_dir)) {
+        fprintf(stderr, "error: it doesn't exist in this or any parent directories\n");
+        return 1;
+    }
+
+    sprintf(issues_dir, "%s/issues", it_dir);
+    d = opendir(issues_dir);
+    
+    issue_list_init(ilist);
+    
+    if (d) {    
+        ilist_it = ilist;
 
         while ((dir = readdir(d)) != NULL) {
             if(endswith(dir->d_name, ".it")) {
                 char filepath[256];
                 FILE * fp;
-                sprintf(filepath, ".it/issues/%s", dir->d_name);
+                sprintf(filepath, "%s/%s", issues_dir, dir->d_name);
                 fp = fopen(filepath, "r");
 
                 if(fp == NULL) {
@@ -166,16 +228,27 @@ int list_issues()
                 fclose(fp);
             }
         }
+    }
 
-        {
-            struct issue_list * ilist_it = &ilist;
-            do {
-                issue_list_item_print(&ilist_it->item);
-                ilist_it = ilist_it->next;
-            } while(ilist_it->next != NULL);
-        }
-    
-        closedir(d);
+    closedir(d);
+
+    return 0;
+}
+
+int list_issues()
+{
+    struct issue_list ilist;
+    if(get_issue_list(&ilist)) {
+        fprintf(stderr, "error: issue list could not be retrieved\n");
+        return 1;
+    }
+
+    {
+        struct issue_list * ilist_it = &ilist;
+        do {
+            issue_list_item_print(&ilist_it->item);
+            ilist_it = ilist_it->next;
+        } while(ilist_it->next != NULL);
     }
 
     return 0;
@@ -213,7 +286,7 @@ int main(int argc, char **argv)
             return init_it();
         }
         if(strcmp("new", argv[i]) == 0) {
-            if(argc < 2) {
+            if(argc < 3) {
                 fprintf(stderr, "error: new requires a title\n");
                 return 1;
             }
@@ -224,21 +297,21 @@ int main(int argc, char **argv)
             return list_issues();
         }
         if(strcmp("close", argv[i]) == 0) {
-            if(argc < 2) {
+            if(argc < 3) {
                 fprintf(stderr, "error: close requires an id\n");
                 return 1;
             }
             return close_issue(argv[i+1]);
         }
         if(strcmp("reopen", argv[i]) == 0) {
-            if(argc < 2) {
+            if(argc < 3) {
                 fprintf(stderr, "error: reopen requires an id\n");
                 return 1;
             }
             return reopen_issue(argv[i+1]);
         }
         if(strcmp("rename", argv[i]) == 0) {
-            if(argc < 3) {
+            if(argc < 4) {
                 fprintf(stderr, "error: rename requires an id and a title\n");
                 return 1;
             }

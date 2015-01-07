@@ -29,10 +29,12 @@ installation
 
 it just requires that you run something that is posix, has a reasonable c compiler, make, and vim. only tested on one specific linux. 
 
-`git clone https://github.com/whackashoe/it.git`
-`cd it/build`
-`make`
-`it --help`
+```
+git clone https://github.com/whackashoe/it.git
+cd it/build
+make
+it --help
+```
 
 you're done.
 

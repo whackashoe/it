@@ -44,7 +44,6 @@ int get_archives_dir(char * out)
 int it_search_recursive_descent(char * out)
 {
     char cwd[1024];
-    size_t cwdlen;
     char it_dir[1024 + (128 * 3)];
     int depth = 0;
     int maxdepth = 128;
@@ -53,7 +52,6 @@ int it_search_recursive_descent(char * out)
         fprintf(stderr, "error: current working directory unable to be resolved\n");
         return 1;
     }
-    cwdlen = strlen(cwd);
 
     {
         struct stat st = {0};
@@ -76,7 +74,6 @@ int it_search_recursive_descent(char * out)
     }
 
     if(depth == maxdepth) {
-        sprintf(out, "");        
         return 1;
     }
 
@@ -142,10 +139,14 @@ int init_it()
 int new_issue(char * title)
 {
     char editor[128];
-    get_editor(editor);
-    int title_len = strlen(title);
-    char * filepath = malloc(sizeof(char) * (title_len + 128));
+    int title_len;
+    char * filepath;
     char it_dir[1024];
+    
+    get_editor(editor);
+    title_len = strlen(title);
+    filepath = malloc(sizeof(char) * (title_len + 128));
+
     if(it_search_recursive_descent(it_dir) != 0) {
         fprintf(stderr, "error: it doesn't exist in this or any parent directories\n");
         return 1;
@@ -179,7 +180,7 @@ int new_issue(char * title)
 
         time(&now);
 
-        strftime(time_str, ISO8601_LEN, "%FT%TZ", gmtime(&now));
+        strftime(time_str, ISO8601_LEN, "%Y-%m-%d G:i", gmtime(&now));
         sprintf(filedata, "%s\n%s\n========\n\nstart writing your issue here\n", title, time_str); 
 
         fp = fopen(filepath, "a+");
@@ -196,7 +197,11 @@ int new_issue(char * title)
     {
         char cmd[512];
         sprintf(cmd, "%s %s", editor, filepath);
-        system(cmd);
+        
+        if(system(cmd) != 0) {
+            fprintf(stderr, "error: '%s' had non zero return code\n", cmd);
+            return 1;
+        }
     }
 
     return 0;
@@ -238,7 +243,13 @@ int get_issue_list(struct issue_list * ilist, char * issues_dir)
                     strncpy(list_item.filename, dir->d_name, sizeof(dir->d_name));
 
                     read = getline(&list_item.title, &len, fp);
+                    if(read == -1) {
+                        fprintf(stderr, "error: reading first line of %s", list_item.filepath);
+                    }
                     read = getline(&list_item.datetime, &len, fp);
+                    if(read == -1) {
+                        fprintf(stderr, "error: reading second line of %s", list_item.filepath);
+                    }
 
                     strtok(list_item.title, "\n");
                     strtok(list_item.datetime, "\n");
@@ -397,23 +408,31 @@ int main(int argc, char **argv)
             return print_help();
         }
         if(strcmp("help", argv[i]) == 0) {
-            if(strcmp("init", argv[i+1]) == 0) {
+            if(argc < 3) {
+                fprintf(stderr, "it: 'help' requires a command. See 'it --help'.\n");
+                return 1;
+            } 
+            else if(strcmp("init", argv[i+1]) == 0) {
                 return print_help_init();
             }
-            if(strcmp("new", argv[i+1]) == 0) {
+            else if(strcmp("new", argv[i+1]) == 0) {
                 return print_help_new();
-            }
-            if(strcmp("list", argv[i+1]) == 0) {
+            } 
+            else if(strcmp("list", argv[i+1]) == 0) {
                 return print_help_list();
             }
-            if(strcmp("close", argv[i+1]) == 0) {
+            else if(strcmp("close", argv[i+1]) == 0) {
                 return print_help_close();
             }
-            if(strcmp("reopen", argv[i+1]) == 0) {
+            else if(strcmp("reopen", argv[i+1]) == 0) {
                 return print_help_reopen();
             }
-            if(strcmp("rename", argv[i+1]) == 0) {
+            else if(strcmp("rename", argv[i+1]) == 0) {
                 return print_help_rename();
+            }
+            else {
+                fprintf(stderr, "it: 'help %s' is not an it command. See 'it --help'.\n", argv[i+1]);
+                return 1;
             }
         }
         if(strcmp("init", argv[i]) == 0) {
@@ -421,7 +440,7 @@ int main(int argc, char **argv)
         }
         if(strcmp("new", argv[i]) == 0) {
             if(argc < 3) {
-                fprintf(stderr, "error: new requires a title\n");
+                fprintf(stderr, "it: 'new' requires a title\n");
                 return 1;
             }
             
@@ -431,12 +450,12 @@ int main(int argc, char **argv)
             if(argc < 3) {
                 return list_open_issues();
             } else {
+                /*
                 if(strcmp("new", argv[i+1]) == 0) {
-                    //new issues
                 }
                 if(strcmp("old", argv[i+1]) == 0) {
-                    //old
                 }
+                */
                 if(strcmp("archive", argv[i+1]) == 0) {
                     return list_archived_issues();
                 }
@@ -444,27 +463,27 @@ int main(int argc, char **argv)
         }
         if(strcmp("close", argv[i]) == 0) {
             if(argc < 3) {
-                fprintf(stderr, "error: close requires an id\n");
+                fprintf(stderr, "it: 'close' requires an id\n");
                 return 1;
             }
             return close_issue(argv[i+1]);
         }
         if(strcmp("reopen", argv[i]) == 0) {
             if(argc < 3) {
-                fprintf(stderr, "error: reopen requires an id\n");
+                fprintf(stderr, "it: 'reopen' requires an id\n");
                 return 1;
             }
             return reopen_issue(argv[i+1]);
         }
         if(strcmp("rename", argv[i]) == 0) {
             if(argc < 4) {
-                fprintf(stderr, "error: rename requires an id and a title\n");
+                fprintf(stderr, "it: 'rename' requires an id and a title\n");
                 return 1;
             }
             return rename_issue(argv[i+1], argv[i+2]);
         }
         
-        printf("it: '%s' is not an it command. See 'it --help'.\n", argv[i]);
+        fprintf(stderr, "it: '%s' is not an it command. See 'it --help'.\n", argv[i]);
     }
     
     return print_help();

@@ -8,17 +8,19 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "util.h"
-
-#define ISO8601_LEN sizeof "2011-10-08T07:07:09Z"
+#include "issue_list_item.h"
+#include "constants.h"
 
 int print_version();
 int print_help();
 int init_it();
 int new_issue(char * title);
 int list_issues();
-int close_issue(int id);
-int reopen_issue(int id);
+int close_issue(char * id);
+int reopen_issue(char * id);
+int rename_issue(char * id, char * title);
 int main(int argc, char **argv);
+
 
 
 int print_version()
@@ -140,20 +142,20 @@ int list_issues()
                 }
 
                 {
-                    char * title = malloc(sizeof(char) * 256);
-                    char * time_str = malloc(sizeof(char) * ISO8601_LEN);
-                    ssize_t read;
-                    size_t len = 0;
+                    struct issue_list_item list_item;
+                    issue_list_item_init(&list_item);
                     char line[256];
 
-                    read = getline(&title, &len, fp);
-                    read = getline(&time_str, &len, fp);
+                    
+                    ssize_t read;
+                    size_t len = 0;
 
-                    sprintf(line, "#%s\t%s\t%s", djb2tos(djb2(title)), time_str, title);
-                    printf("%s", line);
+                    read = getline(&list_item.title, &len, fp);
+                    read = getline(&list_item.datetime, &len, fp);
 
-                    free(title);
-                    free(time_str);
+                    issue_list_item_gen_id(&list_item);
+                    issue_list_item_print(&list_item);
+                    issue_list_item_destroy(&list_item);
                 }
 
                 fclose(fp);
@@ -166,12 +168,17 @@ int list_issues()
     return 0;
 }
 
-int close_issue(int id)
+int close_issue(char * id)
 {
     return 0;
 }
 
-int reopen_issue(int id)
+int reopen_issue(char * id)
+{
+    return 0;
+}
+
+int rename_issue(char * id, char * title)
 {
     return 0;
 }
@@ -208,14 +215,21 @@ int main(int argc, char **argv)
                 fprintf(stderr, "error: close requires an id\n");
                 return 1;
             }
-            return close_issue(atoi(argv[i+1]));
+            return close_issue(argv[i+1]);
         }
         if(strcmp("reopen", argv[i]) == 0) {
             if(argc < 2) {
                 fprintf(stderr, "error: reopen requires an id\n");
                 return 1;
             }
-            return reopen_issue(atoi(argv[i+1]));
+            return reopen_issue(argv[i+1]);
+        }
+        if(strcmp("rename", argv[i]) == 0) {
+            if(argc < 3) {
+                fprintf(stderr, "error: rename requires an id and a title\n");
+                return 1;
+            }
+            return rename_issue(argv[i+1], argv[i+2]);
         }
         
         printf("try `it help`\n");

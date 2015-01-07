@@ -33,7 +33,7 @@ it just requires that you run something that is posix, has a reasonable c compil
 git clone https://github.com/whackashoe/it.git
 cd it/build
 make
-it --help
+sudo make install
 ```
 
 you're done.

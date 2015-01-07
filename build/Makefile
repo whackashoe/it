@@ -12,3 +12,7 @@ $(TARGET): $(OBJECTS)
 
 clean:
 	rm -rf $(OBJECTS) it
+
+install:
+	cp it /usr/local/bin
+	@echo "it installed to /usr/local/bin"

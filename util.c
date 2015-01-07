@@ -1,4 +1,5 @@
 #include "util.h"
+#include <stdio.h>
 
 /*
  * http://stackoverflow.com/a/744822/778858
@@ -48,4 +49,18 @@ char * djb2tos(unsigned long n)
     }
 
     return rval;
+}
+
+int get_editor(char * out)
+{
+    char * editor = "vim";
+    sprintf(out, "%s", editor);
+    return 0;
+
+    /*
+    char * editor = getenv("EDITOR");
+    if(editor == NULL) {
+        fprintf(stderr, "error: EDITOR environment variable not set");
+        return 1;
+    }*/
 }

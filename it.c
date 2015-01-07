@@ -11,16 +11,35 @@
 #include "issue_list_item.h"
 #include "issue_list.h"
 #include "constants.h"
+#include "print_help.h"
+#include "issue_status.h"
+#include "it.h"
 
-int print_version();
-int print_help();
-int init_it();
-int new_issue(char * title);
-int list_issues();
-int close_issue(char * id);
-int reopen_issue(char * id);
-int rename_issue(char * id, char * title);
-int main(int argc, char **argv);
+
+int get_it_dir(char * out, char * dir)
+{
+    char it_dir[1024];
+    char indir[1024];
+    if(it_search_recursive_descent(it_dir) != 0) {
+        fprintf(stderr, "error: it doesn't exist in this or any parent directories\n");
+        return 1;
+    }
+
+    sprintf(indir, "%s/%s", it_dir, dir);
+    strncpy(out, indir, sizeof(indir));
+
+    return 0;
+}
+
+int get_issues_dir(char * out)
+{
+    return get_it_dir(out, "issues");
+}
+
+int get_archives_dir(char * out)
+{
+    return get_it_dir(out, "archive");
+}
 
 int it_search_recursive_descent(char * out)
 {
@@ -67,13 +86,26 @@ int it_search_recursive_descent(char * out)
 
 int print_version()
 {
-    printf("0.1\n");
+    printf("it version %s\n", VERSION);
     return 0;
 }
 
 int print_help()
 {
-    printf("help\n");
+    printf(
+        "usage: it [--version] [--help] <command> [<args>]\n"
+        "\n"
+        "it commands:\n"
+        "   init               Initialize issue tracker\n"
+        "   new TITLE          Add a new issue\n"
+        "   list [archive]     List all issues\n"
+        "   close ID           Close an issue\n"
+        "   reopen ID          Reopen an issue\n"
+        "   rename ID TITLE    Rename an issue\n"
+        "   help COMMAND       Shows help page describing command\n"
+        "\n"
+        "See 'it help <command>' to read about a specific subcommand\n"
+    );
     return 0;
 }
 
@@ -109,7 +141,8 @@ int init_it()
 
 int new_issue(char * title)
 {
-    char * editor = "vim";
+    char editor[128];
+    get_editor(editor);
     int title_len = strlen(title);
     char * filepath = malloc(sizeof(char) * (title_len + 128));
     char it_dir[1024];
@@ -117,13 +150,6 @@ int new_issue(char * title)
         fprintf(stderr, "error: it doesn't exist in this or any parent directories\n");
         return 1;
     }
-
-    /*
-    char * editor = getenv("EDITOR");
-    if(editor == NULL) {
-        fprintf(stderr, "error: EDITOR environment variable not set");
-        return 1;
-    }*/
 
     {
         char * filename = malloc(sizeof(char) * title_len);
@@ -176,20 +202,12 @@ int new_issue(char * title)
     return 0;
 }
 
-int get_issue_list(struct issue_list * ilist)
+int get_issue_list(struct issue_list * ilist, char * issues_dir)
 {
-    char it_dir[1024];
-    char issues_dir[1024];
     DIR * d;
     struct dirent *dir;
     struct issue_list * ilist_it;
 
-    if(it_search_recursive_descent(it_dir) != 0) {
-        fprintf(stderr, "error: it doesn't exist in this or any parent directories\n");
-        return 1;
-    }
-
-    sprintf(issues_dir, "%s/issues", it_dir);
     d = opendir(issues_dir);
     
     issue_list_init(ilist);
@@ -241,10 +259,26 @@ int get_issue_list(struct issue_list * ilist)
     return 0;
 }
 
-int list_issues()
+
+int list_issues(enum issue_status type)
 {
+    char issues_dir[1024];
     struct issue_list ilist;
-    if(get_issue_list(&ilist) != 0) {
+    int result;
+
+    if(type == IT_OPEN) {
+        result = get_issues_dir(issues_dir);
+    } else if(type == IT_ARCHIVE) {
+        result = get_archives_dir(issues_dir);
+    } else {
+        result = 1;
+    }
+
+    if(result != 0) {
+        return 1;
+    }
+
+    if(get_issue_list(&ilist, issues_dir) != 0) {
         fprintf(stderr, "error: issue list could not be retrieved\n");
         return 1;
     }
@@ -260,23 +294,57 @@ int list_issues()
     return 0;
 }
 
-int close_issue(char * id)
+int list_open_issues()
+{
+    return list_issues(IT_OPEN);
+}
+
+int list_archived_issues()
+{
+    return list_issues(IT_ARCHIVE);
+}
+
+int switch_issue_directory(char * id, enum issue_status fromtype, enum issue_status totype, char * success_message)
 {
     char it_dir[1024];
-    char archive_dir[1024];
+    char from_dir[1024], to_dir[1024];
     struct issue_list ilist;
+    int fresult, tresult;
+
+    if(fromtype == IT_OPEN) {
+        fresult = get_issues_dir(from_dir);
+    } else if(fromtype == IT_ARCHIVE) {
+        fresult = get_archives_dir(from_dir);
+    } else {
+        fresult = 1;
+    }
+
+    if(fresult != 0) {
+        return 1;
+    }
+
+    if(totype == IT_OPEN) {
+        tresult = get_issues_dir(to_dir);
+    } else if(totype == IT_ARCHIVE) {
+        tresult = get_archives_dir(to_dir);
+    } else {
+        tresult = 1;
+    }
+
+    if(tresult != 0) {
+        return 1;
+    }
 
     if(it_search_recursive_descent(it_dir) != 0) {
         fprintf(stderr, "error: it doesn't exist in this or any parent directories\n");
         return 1;
     }
 
-    if(get_issue_list(&ilist) != 0) {
+    if(get_issue_list(&ilist, from_dir) != 0) {
         fprintf(stderr, "error: issue list could not be retrieved\n");
         return 1;
     }
 
-    sprintf(archive_dir, "%s/archive", it_dir);
 
     {
         struct issue_list_item * item = issue_list_search(&ilist, id);
@@ -287,21 +355,27 @@ int close_issue(char * id)
             return 1;
         }
 
-        sprintf(newname, "%s/%s", archive_dir, item->filename);
+        sprintf(newname, "%s/%s", to_dir, item->filename);
         
         if(rename(item->filepath, newname) != 0) {
             fprintf(stderr, "error: rename from %s to %s failed\n", item->filepath, newname);
             return 1;
         }
 
-        printf("%s archived\n", item->title);
+        printf(success_message, item->title);
     }
+
     return 0;
+}
+
+int close_issue(char * id)
+{
+    return switch_issue_directory(id, IT_OPEN, IT_ARCHIVE, "%s archived\n");
 }
 
 int reopen_issue(char * id)
 {
-    return 0;
+    return switch_issue_directory(id, IT_ARCHIVE, IT_OPEN, "%s reopened\n");
 }
 
 int rename_issue(char * id, char * title)
@@ -316,11 +390,31 @@ int main(int argc, char **argv)
     if(argc > 1) {
         i = 1;
 
-        if(strcmp("version", argv[i]) == 0) {
+        if(strcmp("--version", argv[i]) == 0) {
             return print_version();
         }
-        if(strcmp("help", argv[i]) == 0) {
+        if(strcmp("--help", argv[i]) == 0) {
             return print_help();
+        }
+        if(strcmp("help", argv[i]) == 0) {
+            if(strcmp("init", argv[i+1]) == 0) {
+                return print_help_init();
+            }
+            if(strcmp("new", argv[i+1]) == 0) {
+                return print_help_new();
+            }
+            if(strcmp("list", argv[i+1]) == 0) {
+                return print_help_list();
+            }
+            if(strcmp("close", argv[i+1]) == 0) {
+                return print_help_close();
+            }
+            if(strcmp("reopen", argv[i+1]) == 0) {
+                return print_help_reopen();
+            }
+            if(strcmp("rename", argv[i+1]) == 0) {
+                return print_help_rename();
+            }
         }
         if(strcmp("init", argv[i]) == 0) {
             return init_it();
@@ -334,7 +428,19 @@ int main(int argc, char **argv)
             return new_issue(argv[i+1]);
         }
         if(strcmp("list", argv[i]) == 0) {
-            return list_issues();
+            if(argc < 3) {
+                return list_open_issues();
+            } else {
+                if(strcmp("new", argv[i+1]) == 0) {
+                    //new issues
+                }
+                if(strcmp("old", argv[i+1]) == 0) {
+                    //old
+                }
+                if(strcmp("archive", argv[i+1]) == 0) {
+                    return list_archived_issues();
+                }
+            }
         }
         if(strcmp("close", argv[i]) == 0) {
             if(argc < 3) {
@@ -358,8 +464,8 @@ int main(int argc, char **argv)
             return rename_issue(argv[i+1], argv[i+2]);
         }
         
-        printf("try `it help`\n");
+        printf("it: '%s' is not an it command. See 'it --help'.\n", argv[i]);
     }
     
-    return 0;
+    return print_help();
 }

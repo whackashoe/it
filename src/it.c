@@ -543,7 +543,7 @@ int main(int argc, char **argv)
 
         else if(strcmp("edit", argv[i]) == 0) {
             if(argc < 3) {
-                fprintf(stderr, "it: 'show' requires an id\n");
+                fprintf(stderr, "it: 'edit' requires an id\n");
                 return 1;
             }
             return edit_issue(argv[i+1]);

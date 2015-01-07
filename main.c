@@ -82,7 +82,7 @@ int init_it()
     char it_dir[1024];
     struct stat st = {0};
 
-    if(!it_search_recursive_descent(it_dir)) {
+    if(it_search_recursive_descent(it_dir) == 0) {
         fprintf(stderr, "error: it has already been installed in a parent directory: %s\n", it_dir);
         return 1;
     }
@@ -113,7 +113,7 @@ int new_issue(char * title)
     int title_len = strlen(title);
     char * filepath = malloc(sizeof(char) * (title_len + 128));
     char it_dir[1024];
-    if(it_search_recursive_descent(it_dir)) {
+    if(it_search_recursive_descent(it_dir) != 0) {
         fprintf(stderr, "error: it doesn't exist in this or any parent directories\n");
         return 1;
     }
@@ -184,7 +184,7 @@ int get_issue_list(struct issue_list * ilist)
     struct dirent *dir;
     struct issue_list * ilist_it;
 
-    if(it_search_recursive_descent(it_dir)) {
+    if(it_search_recursive_descent(it_dir) != 0) {
         fprintf(stderr, "error: it doesn't exist in this or any parent directories\n");
         return 1;
     }
@@ -199,7 +199,7 @@ int get_issue_list(struct issue_list * ilist)
 
         while ((dir = readdir(d)) != NULL) {
             if(endswith(dir->d_name, ".it")) {
-                char filepath[256];
+                char filepath[1024];
                 FILE * fp;
                 sprintf(filepath, "%s/%s", issues_dir, dir->d_name);
                 fp = fopen(filepath, "r");
@@ -216,9 +216,15 @@ int get_issue_list(struct issue_list * ilist)
                     size_t len = 0;
 
                     issue_list_item_init(&list_item);
+                    strncpy(list_item.filepath, filepath, sizeof(filepath));
+                    strncpy(list_item.filename, dir->d_name, sizeof(dir->d_name));
 
                     read = getline(&list_item.title, &len, fp);
                     read = getline(&list_item.datetime, &len, fp);
+
+                    strtok(list_item.title, "\n");
+                    strtok(list_item.datetime, "\n");
+
 
                     issue_list_item_gen_id(&list_item);
 
@@ -238,7 +244,7 @@ int get_issue_list(struct issue_list * ilist)
 int list_issues()
 {
     struct issue_list ilist;
-    if(get_issue_list(&ilist)) {
+    if(get_issue_list(&ilist) != 0) {
         fprintf(stderr, "error: issue list could not be retrieved\n");
         return 1;
     }
@@ -246,7 +252,7 @@ int list_issues()
     {
         struct issue_list * ilist_it = &ilist;
         do {
-            issue_list_item_print(&ilist_it->item);
+            printf("#%s\t%s\n\t%s\n", ilist_it->item.id, ilist_it->item.datetime, ilist_it->item.title);
             ilist_it = ilist_it->next;
         } while(ilist_it->next != NULL);
     }
@@ -256,6 +262,40 @@ int list_issues()
 
 int close_issue(char * id)
 {
+    char it_dir[1024];
+    char archive_dir[1024];
+    struct issue_list ilist;
+
+    if(it_search_recursive_descent(it_dir) != 0) {
+        fprintf(stderr, "error: it doesn't exist in this or any parent directories\n");
+        return 1;
+    }
+
+    if(get_issue_list(&ilist) != 0) {
+        fprintf(stderr, "error: issue list could not be retrieved\n");
+        return 1;
+    }
+
+    sprintf(archive_dir, "%s/archive", it_dir);
+
+    {
+        struct issue_list_item * item = issue_list_search(&ilist, id);
+        char newname[1024];
+
+        if(item == NULL) {
+            fprintf(stderr, "error: item id not found\n");
+            return 1;
+        }
+
+        sprintf(newname, "%s/%s", archive_dir, item->filename);
+        
+        if(rename(item->filepath, newname) != 0) {
+            fprintf(stderr, "error: rename from %s to %s failed\n", item->filepath, newname);
+            return 1;
+        }
+
+        printf("%s archived\n", item->title);
+    }
     return 0;
 }
 

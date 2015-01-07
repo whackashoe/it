@@ -98,7 +98,7 @@ int print_help()
         "   list [archive]     List all issues\n"
         "   close ID           Close an issue\n"
         "   reopen ID          Reopen an issue\n"
-        "   rename ID TITLE    Rename an issue\n"
+        /*"   rename ID TITLE    Rename an issue\n"*/
         "   edit ID            Edit an issue\n"
         "   help COMMAND       Shows help page describing command\n"
         "\n"

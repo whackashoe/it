@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include "util.h"
 #include "issue_list_item.h"
+#include "issue_list.h"
 #include "constants.h"
 
 int print_version();
@@ -63,7 +64,7 @@ int new_issue(char * title)
 {
     char * editor = "vim";
     int title_len = strlen(title);
-    char filepath[title_len + 128];
+    char * filepath = malloc(sizeof(char) * (title_len + 128));
 
     /*
     char * editor = getenv("EDITOR");
@@ -73,7 +74,7 @@ int new_issue(char * title)
     }*/
 
     {
-        char filename[title_len];
+        char * filename = malloc(sizeof(char) * title_len);
         char c;
         int i, j;
         for(i=0, j=0; i<title_len; ++i) {
@@ -96,8 +97,10 @@ int new_issue(char * title)
         FILE * fp;
         char filedata[1024];
         time_t now;
+        char * time_str = malloc(sizeof(char) * ISO8601_LEN);
+
         time(&now);
-        char time_str[ISO8601_LEN];
+
         strftime(time_str, ISO8601_LEN, "%FT%TZ", gmtime(&now));
         sprintf(filedata, "%s\n%s\n========\n\nstart writing your issue here\n", title, time_str); 
 
@@ -125,9 +128,13 @@ int list_issues()
 {
     DIR * d = opendir(".it/issues");
     struct dirent *dir;
-    int cnt = 0;
 
     if (d) {
+        struct issue_list ilist;
+        struct issue_list * ilist_it;
+        issue_list_init(&ilist);
+        ilist_it = &ilist;
+
         while ((dir = readdir(d)) != NULL) {
             if(endswith(dir->d_name, ".it")) {
                 char filepath[256];
@@ -143,23 +150,29 @@ int list_issues()
 
                 {
                     struct issue_list_item list_item;
-                    issue_list_item_init(&list_item);
-                    char line[256];
-
-                    
                     ssize_t read;
                     size_t len = 0;
+
+                    issue_list_item_init(&list_item);
 
                     read = getline(&list_item.title, &len, fp);
                     read = getline(&list_item.datetime, &len, fp);
 
                     issue_list_item_gen_id(&list_item);
-                    issue_list_item_print(&list_item);
-                    issue_list_item_destroy(&list_item);
+
+                    ilist_it = issue_list_add(ilist_it, list_item);
                 }
 
                 fclose(fp);
             }
+        }
+
+        {
+            struct issue_list * ilist_it = &ilist;
+            do {
+                issue_list_item_print(&ilist_it->item);
+                ilist_it = ilist_it->next;
+            } while(ilist_it->next != NULL);
         }
     
         closedir(d);
@@ -185,7 +198,7 @@ int rename_issue(char * id, char * title)
 
 int main(int argc, char **argv)
 {
-    int i; //index
+    int i;
 
     if(argc > 1) {
         i = 1;

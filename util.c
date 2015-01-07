@@ -1,14 +1,19 @@
 #include "util.h"
 
-//http://stackoverflow.com/a/744822/778858
+/*
+ * http://stackoverflow.com/a/744822/778858
+ */
 int endswith(char *str, char *suffix)
 {
+    size_t lenstr;
+    size_t lensuffix;
+
     if (!str || !suffix) {
         return 0;
     }
     
-    size_t lenstr = strlen(str);
-    size_t lensuffix = strlen(suffix);
+    lenstr = strlen(str);
+    lensuffix = strlen(suffix);
     
     if (lensuffix >  lenstr) {
         return 0;
@@ -17,12 +22,12 @@ int endswith(char *str, char *suffix)
     return strncmp(str + lenstr - lensuffix, suffix, lensuffix) == 0;
 }
 
-unsigned long djb2(unsigned char * str)
+unsigned long djb2(char * str)
 {
     unsigned long hash = 5381;
     int c;
 
-    while (c = *str++) {
+    while((c = (unsigned char)*str++)) {
         hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
     }
 

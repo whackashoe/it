@@ -30,4 +30,5 @@ int issue_list_item_destroy(struct issue_list_item * list_item)
     free(list_item->id);
     free(list_item->title);
     free(list_item->datetime);
+    return 0;
 }

@@ -9,7 +9,7 @@ int issue_list_item_init(struct issue_list_item * list_item)
 {
     list_item->id = malloc(sizeof(char) * 6);
     list_item->title = malloc(sizeof(char) * 256);
-    list_item->datetime = malloc(sizeof(char) * ISO8601_LEN);
+    list_item->datetime = malloc(sizeof(char) * DATEFORMAT_LEN);
     list_item->filepath = malloc(sizeof(char) * 1024);
     list_item->filename = malloc(sizeof(char) * 1024);
     return 0;
@@ -17,7 +17,9 @@ int issue_list_item_init(struct issue_list_item * list_item)
 
 int issue_list_item_gen_id(struct issue_list_item * list_item)
 {
-    strncpy(list_item->id, djb2tos(djb2(list_item->title)), 6);
+    char title_datetime[512];
+    sprintf(title_datetime, "%s%s", list_item->title, list_item->datetime);
+    strncpy(list_item->id, djb2tos(djb2(title_datetime)), 6);
     return 0;
 }
 

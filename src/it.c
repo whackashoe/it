@@ -176,11 +176,11 @@ int new_issue(char * title)
         FILE * fp;
         char filedata[1024];
         time_t now;
-        char * time_str = malloc(sizeof(char) * ISO8601_LEN);
+        char * time_str = malloc(sizeof(char) * DATEFORMAT_LEN);
 
         time(&now);
 
-        strftime(time_str, ISO8601_LEN, "%Y-%m-%d G:i", gmtime(&now));
+        strftime(time_str, DATEFORMAT_LEN, "%Y-%m-%d %H:%M", gmtime(&now));
         sprintf(filedata, "%s\n%s\n========\n\nstart writing your issue here\n", title, time_str); 
 
         fp = fopen(filepath, "a+");
@@ -297,7 +297,7 @@ int list_issues(enum issue_status type)
     {
         struct issue_list * ilist_it = &ilist;
         do {
-            printf("#%s\t%s\n\t%s\n", ilist_it->item.id, ilist_it->item.datetime, ilist_it->item.title);
+            printf("\t%s\n[%s]\t%s\n", ilist_it->item.title, ilist_it->item.id, ilist_it->item.datetime);
             ilist_it = ilist_it->next;
         } while(ilist_it->next != NULL);
     }

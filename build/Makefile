@@ -11,4 +11,4 @@ $(TARGET): $(OBJECTS)
 	@$(CC) $(CFLAGS) -o it $(OBJECTS)
 
 clean:
-	rm -rf $(OBJECTS) $(TARGET)
+	rm -rf $(OBJECTS) it

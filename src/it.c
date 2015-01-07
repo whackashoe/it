@@ -99,6 +99,7 @@ int print_help()
         "   close ID           Close an issue\n"
         "   reopen ID          Reopen an issue\n"
         "   rename ID TITLE    Rename an issue\n"
+        "   edit ID            Edit an issue\n"
         "   help COMMAND       Shows help page describing command\n"
         "\n"
         "See 'it help <command>' to read about a specific subcommand\n"
@@ -394,6 +395,52 @@ int rename_issue(char * id, char * title)
     return 0;
 }
 
+int edit_issue(char * id)
+{
+    char it_dir[1024];
+    char issues_dir[1024];
+    struct issue_list ilist;
+
+    if(get_issues_dir(issues_dir) != 0) {
+        return 1;
+    }
+
+    if(it_search_recursive_descent(it_dir) != 0) {
+        fprintf(stderr, "error: it doesn't exist in this or any parent directories\n");
+        return 1;
+    }
+
+    if(get_issue_list(&ilist, issues_dir) != 0) {
+        fprintf(stderr, "error: issue list could not be retrieved\n");
+        return 1;
+    }
+
+
+    {
+        struct issue_list_item * item = issue_list_search(&ilist, id);
+
+        if(item == NULL) {
+            fprintf(stderr, "error: item id not found\n");
+            return 1;
+        }
+
+        {
+            char editor[128];
+            char cmd[512];
+
+            get_editor(editor);
+            sprintf(cmd, "%s %s", editor, item->filepath);
+            
+            if(system(cmd) != 0) {
+                fprintf(stderr, "error: '%s' had non zero return code\n", cmd);
+                return 1;
+            }
+        }
+    }
+
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
     int i;
@@ -404,10 +451,12 @@ int main(int argc, char **argv)
         if(strcmp("--version", argv[i]) == 0) {
             return print_version();
         }
-        if(strcmp("--help", argv[i]) == 0) {
+        
+        else if(strcmp("--help", argv[i]) == 0) {
             return print_help();
         }
-        if(strcmp("help", argv[i]) == 0) {
+        
+        else if(strcmp("help", argv[i]) == 0) {
             if(argc < 3) {
                 fprintf(stderr, "it: 'help' requires a command. See 'it --help'.\n");
                 return 1;
@@ -430,15 +479,20 @@ int main(int argc, char **argv)
             else if(strcmp("rename", argv[i+1]) == 0) {
                 return print_help_rename();
             }
+            else if(strcmp("edit", argv[i+1]) == 0) {
+                return print_help_edit();
+            } 
             else {
                 fprintf(stderr, "it: 'help %s' is not an it command. See 'it --help'.\n", argv[i+1]);
                 return 1;
             }
         }
-        if(strcmp("init", argv[i]) == 0) {
+        
+        else if(strcmp("init", argv[i]) == 0) {
             return init_it();
         }
-        if(strcmp("new", argv[i]) == 0) {
+        
+        else if(strcmp("new", argv[i]) == 0) {
             if(argc < 3) {
                 fprintf(stderr, "it: 'new' requires a title\n");
                 return 1;
@@ -446,7 +500,8 @@ int main(int argc, char **argv)
             
             return new_issue(argv[i+1]);
         }
-        if(strcmp("list", argv[i]) == 0) {
+        
+        else if(strcmp("list", argv[i]) == 0) {
             if(argc < 3) {
                 return list_open_issues();
             } else {
@@ -461,26 +516,37 @@ int main(int argc, char **argv)
                 }
             }
         }
-        if(strcmp("close", argv[i]) == 0) {
+        
+        else if(strcmp("close", argv[i]) == 0) {
             if(argc < 3) {
                 fprintf(stderr, "it: 'close' requires an id\n");
                 return 1;
             }
             return close_issue(argv[i+1]);
         }
-        if(strcmp("reopen", argv[i]) == 0) {
+        
+        else if(strcmp("reopen", argv[i]) == 0) {
             if(argc < 3) {
                 fprintf(stderr, "it: 'reopen' requires an id\n");
                 return 1;
             }
             return reopen_issue(argv[i+1]);
         }
-        if(strcmp("rename", argv[i]) == 0) {
+
+        else if(strcmp("rename", argv[i]) == 0) {
             if(argc < 4) {
                 fprintf(stderr, "it: 'rename' requires an id and a title\n");
                 return 1;
             }
             return rename_issue(argv[i+1], argv[i+2]);
+        }
+
+        else if(strcmp("edit", argv[i]) == 0) {
+            if(argc < 3) {
+                fprintf(stderr, "it: 'show' requires an id\n");
+                return 1;
+            }
+            return edit_issue(argv[i+1]);
         }
         
         fprintf(stderr, "it: '%s' is not an it command. See 'it --help'.\n", argv[i]);

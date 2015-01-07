@@ -184,3 +184,32 @@ int print_help_rename()
     );
     return 0;
 }
+
+int print_help_edit()
+{
+    printf(
+        "NAME\n"
+        "\tit edit - Edit an issue\n"
+        "\n"
+    );
+    printf(
+        "SYNOPSIS\n"
+        "\tit edit ID\n"
+        "\n"
+    );
+    printf(
+        "DESCRIPTION:\n"
+        "\tOpens $EDITOR to edit the open issue referenced by ID. "
+        "You must provide the 5 character id displayed during 'it list'.\n"
+        "\n"
+    );
+    printf(
+        "EXAMPLE:\n"
+        "\tit edit adhaw\n"
+        "\n"
+    );
+    printf(
+        "See 'it help <command>' to read about a specific subcommand\n"
+    );
+    return 0;
+}

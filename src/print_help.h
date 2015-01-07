@@ -7,5 +7,6 @@ int print_help_list();
 int print_help_close();
 int print_help_reopen();
 int print_help_rename();
+int print_help_edit();
 
 #endif
